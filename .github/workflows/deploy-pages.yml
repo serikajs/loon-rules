@@ -1,0 +1,59 @@
+name: Deploy Loon Rules Page
+
+on:
+  push:
+    branches: ["main", "master"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Fetch upstream README (luestr/ShuntRules)
+        run: |
+          curl -fL https://raw.githubusercontent.com/luestr/ShuntRules/main/README.md -o README.md || \
+          curl -fL https://raw.githubusercontent.com/luestr/ShuntRules/master/README.md -o README.md
+
+      - name: Extract Loon rules from README
+        run: node extract-loon.js
+
+      - name: Prepare static site
+        run: |
+          mkdir -p public
+          cp index.html loon-rules.json public/
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./public
+
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

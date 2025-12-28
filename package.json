@@ -1,0 +1,9 @@
+{
+  "name": "shuntrules-tools",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "extract:loon": "node extract-loon.js"
+  }
+}
