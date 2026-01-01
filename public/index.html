@@ -1,0 +1,311 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Loon Rules Gallery</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", system-ui, sans-serif;
+      background: #fafafa;
+      color: #1a1a1a;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="app">
+    <header class="sticky top-0 z-10 backdrop-blur-xl bg-white/80 border-b border-gray-200/50 shadow-sm">
+      <!-- Gradient accent line -->
+      <div class="h-0.5 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500"></div>
+
+      <div class="max-w-[1200px] mx-auto px-6">
+        <!-- Top row: Logo + Search -->
+        <div class="flex items-center justify-between gap-6 py-4">
+          <!-- Left: Branding -->
+          <div class="flex items-center gap-4">
+            <div class="flex items-center gap-3">
+              <div
+                class="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-md shadow-blue-500/25">
+                <svg class="w-5 h-5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                  stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M12 2L2 7l10 5 10-5-10-5z" />
+                  <path d="M2 17l10 5 10-5" />
+                  <path d="M2 12l10 5 10-5" />
+                </svg>
+              </div>
+              <div>
+                <h1 class="m-0 text-xl font-bold tracking-tight text-gray-900">Loon Rules</h1>
+                <p class="m-0 text-xs text-gray-500">Curated proxy rules collection</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Center: Search -->
+          <label class="relative flex-1 max-w-md" aria-label="Search services">
+            <svg class="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 stroke-gray-400" viewBox="0 0 24 24"
+              fill="none" stroke-width="2">
+              <circle cx="11" cy="11" r="7" />
+              <line x1="16.5" y1="16.5" x2="21" y2="21" />
+            </svg>
+            <input v-model="searchTerm" type="search" placeholder="Search rules..." autocomplete="off"
+              class="w-full pl-11 pr-4 py-2.5 rounded-full border border-gray-200 bg-gray-50/80 text-sm text-gray-900 placeholder-gray-400 outline-none transition-all duration-200 focus:bg-white focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10">
+          </label>
+
+          <!-- Right: Counter badge -->
+          <div class="flex items-center gap-3">
+            <span
+              class="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r from-gray-50 to-gray-100 text-sm font-medium border border-gray-200/80 shadow-sm">
+              <span class="font-bold text-gray-900">{{ displayCount }}</span>
+              <span class="text-gray-500">rules</span>
+            </span>
+          </div>
+        </div>
+
+        <!-- Bottom row: Category tabs -->
+        <div class="flex items-center gap-1.5 pb-3 overflow-x-auto scrollbar-hide" role="tablist"
+          aria-label="Filter services">
+          <button v-for="tab in tabs" :key="tab.id" @click="setActiveTab(tab.id)" :class="[
+              'px-4 py-1.5 rounded-full text-sm font-medium cursor-pointer transition-all duration-200 flex-shrink-0 border',
+              activeTab === tab.id
+                ? 'bg-gray-900 text-white border-gray-900 shadow-md'
+                : 'bg-white/80 text-gray-600 border-gray-200 hover:border-gray-300 hover:bg-white hover:text-gray-900'
+            ]" type="button">
+            {{ tab.label }}
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <main class="max-w-[1200px] mx-auto px-6 pt-6 pb-12">
+      <div class="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-5">
+        <div v-for="entry in filteredEntries" :key="entry.name"
+          class="bg-white rounded-xl p-4 shadow-sm border border-gray-100 flex flex-col gap-3 transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 hover:border-gray-200">
+          <div class="flex items-center justify-between gap-3">
+            <h3
+              class="m-0 text-base font-semibold text-gray-900 overflow-hidden text-ellipsis whitespace-nowrap flex-1">
+              {{ entry.name }}</h3>
+            <button @click="openUrl(entry.url)"
+              class="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg cursor-pointer transition-all duration-200 flex-shrink-0 hover:bg-blue-700 active:scale-[0.98] shadow-sm hover:shadow">
+              GET
+            </button>
+          </div>
+          <p class="m-0 text-xs text-gray-500 break-all leading-relaxed">{{ extractUrlPath(entry.url) }}</p>
+        </div>
+      </div>
+      <div :class="[
+          'mt-6 text-sm',
+          hasError ? 'text-red-600' : 'text-gray-500'
+        ]">
+        {{ statusText }}
+      </div>
+    </main>
+  </div>
+
+  <script>
+    const { createApp, ref, computed, onMounted } = Vue;
+
+    createApp({
+      setup() {
+        const entries = ref([]);
+        const activeTab = ref('all');
+        const searchTerm = ref('');
+        const errorMessage = ref('');
+
+        // 根据规则名称判断分类
+        const getCategory = (name) => {
+          const lowerName = name.toLowerCase();
+          
+          // Advertising 分类（优先级最高，避免被 Reject 覆盖）
+          if (lowerName.includes('advertising') || lowerName === 'zhihuads' || lowerName === 'direct') {
+            return 'advertising';
+          }
+          
+          // Reject 分类
+          if (lowerName.includes('hijacking') || lowerName.includes('privacy') || 
+              lowerName.includes('adguardsdnfilter') || lowerName.includes('easyprivacy') || 
+              lowerName.includes('blockhttpdns')) {
+            return 'reject';
+          }
+          
+          // Google 分类
+          if (lowerName.includes('google') || lowerName.includes('youtube') || 
+              lowerName.includes('chromecast') || lowerName.includes('gemini') || 
+              lowerName.includes('bardai') || lowerName === 'gmail') {
+            return 'google';
+          }
+          
+          // Apple 分类
+          if (lowerName.includes('apple') || lowerName.includes('icloud') || 
+              lowerName.includes('appstore') || lowerName.includes('testflight') || 
+              lowerName.includes('siri') || lowerName.includes('fitnessplus') || 
+              lowerName.includes('findmy') || lowerName.includes('beats') || 
+              lowerName.includes('systemota') || lowerName === 'imessage') {
+            return 'apple';
+          }
+          
+          // Microsoft 分类
+          if (lowerName.includes('microsoft') || lowerName.includes('onedrive') || 
+              lowerName === 'github' || lowerName.includes('teams') || 
+              lowerName === 'bing' || lowerName.includes('copilot') || 
+              lowerName.includes('microsoftedge')) {
+            return 'microsoft';
+          }
+          
+          // China 分类（中国服务，排除已在其他分类的）
+          const chinaKeywords = ['china', 'baidu', 'alibaba', 'tencent', 'weibo', 'bilibili', 
+            'zhihu', 'qq', 'wechat', 'douyin', 'xiaohongshu', 'taobao', 'tmall', 
+            'jd', 'jingdong', 'meituan', 'dianping', 'ctrip', 'xiecheng', '12306',
+            'icbc', 'ccb', 'abc', 'boc', 'cmb', 'pingan', 'unionpay', 'alipay',
+            'youku', 'iqiyi', 'iqiyiintl', 'acfun', 'douyu', 'huya', 'zhanqi',
+            'netease', 'neteasemusic', 'kugou', 'kuwo', 'xiami', 'qiyi',
+            'cnki', 'wanfang', 'dingxiangyuan', 'xueqiu', 'eastmoney', 'sina',
+            'sohu', 'ifeng', 'people', 'xinhua', 'cctv', 'cbn', 'smg'];
+          if (chinaKeywords.some(keyword => lowerName.includes(keyword))) {
+            return 'china';
+          }
+          
+          // Global 分类（国际服务，排除已在其他分类的）
+          const globalKeywords = ['global', 'proxy', 'netflix', 'tiktok', 'disney', 
+            'twitter', 'telegram', 'facebook', 'instagram', 'whatsapp', 'spotify', 
+            'wikipedia', 'discord', 'mail', 'paypal', 'amazon', 'ebay', 'reddit',
+            'linkedin', 'pinterest', 'tumblr', 'snapchat', 'vimeo',
+            'dropbox', 'mega', 'slack', 'zoom', 'skype', 'line', 'kakaotalk',
+            'twitch', 'hulu', 'hbo', 'paramount', 'peacock', 'fubo', 'sling',
+            'dazn', 'nbc', 'cbs', 'fox', 'cnn', 'bbc', 'reuters',
+            'bloomberg', 'wsj', 'ft', 'economist'];
+          if (globalKeywords.some(keyword => lowerName.includes(keyword))) {
+            return 'global';
+          }
+          
+          // Other 分类（其他所有规则）
+          return 'other';
+        };
+
+        const tabLabels = {
+          all: "全部",
+          advertising: "广告",
+          reject: "拒绝",
+          google: "Google",
+          apple: "Apple",
+          microsoft: "Microsoft",
+          china: "中国",
+          global: "全球",
+          other: "其他"
+        };
+
+        const tabs = [
+          { id: 'all', label: '全部' },
+          { id: 'advertising', label: '广告' },
+          { id: 'reject', label: '拒绝' },
+          { id: 'google', label: 'Google' },
+          { id: 'apple', label: 'Apple' },
+          { id: 'microsoft', label: 'Microsoft' },
+          { id: 'china', label: '中国' },
+          { id: 'global', label: '全球' },
+          { id: 'other', label: '其他' }
+        ];
+
+        const filterByTab = (entry) => {
+          if (activeTab.value === "all") return true;
+          return getCategory(entry.name) === activeTab.value;
+        };
+
+        const scopedEntries = computed(() => {
+          return entries.value.filter(filterByTab);
+        });
+
+        const filteredEntries = computed(() => {
+          const q = searchTerm.value.trim().toLowerCase();
+          if (!q) return scopedEntries.value;
+          return scopedEntries.value.filter(({ name }) =>
+            name.toLowerCase().includes(q)
+          );
+        });
+
+        const displayCount = computed(() => {
+          return filteredEntries.value.length;
+        });
+
+        const statusText = computed(() => {
+          if (errorMessage.value) return errorMessage.value;
+          const q = searchTerm.value.trim().toLowerCase();
+          if (q) {
+            return `${filteredEntries.value.length} of ${scopedEntries.value.length} matched`;
+          } else if (activeTab.value !== "all") {
+            return tabLabels[activeTab.value];
+          } else {
+            return "";
+          }
+        });
+
+        const hasError = computed(() => {
+          return errorMessage.value !== '';
+        });
+
+        const setActiveTab = (tab) => {
+          activeTab.value = tab;
+        };
+
+        const openUrl = (url) => {
+          window.open(url, "_blank", "noopener");
+        };
+
+        const extractUrlPath = (url) => {
+          try {
+            const match = url.match(/rule\.kelee\.one\/[^\s&]+/);
+            return match ? match[0] : url;
+          } catch (e) {
+            return url;
+          }
+        };
+
+        const loadData = () => {
+          fetch("loon-rules.json")
+            .then((res) => {
+              if (!res.ok) throw new Error(`HTTP ${res.status}`);
+              return res.json();
+            })
+            .then((data) => {
+              entries.value = data;
+              errorMessage.value = '';
+            })
+            .catch((err) => {
+              errorMessage.value = `Failed to load loon-rules.json: ${err.message}`;
+            });
+        };
+
+        onMounted(() => {
+          loadData();
+        });
+
+        return {
+          entries,
+          activeTab,
+          searchTerm,
+          errorMessage,
+          tabs,
+          filteredEntries,
+          displayCount,
+          statusText,
+          hasError,
+          setActiveTab,
+          openUrl,
+          extractUrlPath
+        };
+      }
+    }).mount('#app');
+  </script>
+</body>
+
+</html>

@@ -24,23 +24,13 @@ jobs:
       - name: Setup Pages
         uses: actions/configure-pages@v5
 
-      - name: Setup Node
-        uses: actions/setup-node@v4
+      - name: Setup Python
+        uses: actions/setup-python@v5
         with:
-          node-version: 20
-
-      - name: Fetch upstream README (luestr/ShuntRules)
-        run: |
-          curl -fL https://raw.githubusercontent.com/luestr/ShuntRules/main/README.md -o README.md || \
-          curl -fL https://raw.githubusercontent.com/luestr/ShuntRules/master/README.md -o README.md
+          python-version: '3.x'
 
       - name: Extract Loon rules from README
-        run: node extract-loon.js
-
-      - name: Prepare static site
-        run: |
-          mkdir -p public
-          cp index.html loon-rules.json public/
+        run: python extract-loon.py
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
