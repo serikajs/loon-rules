@@ -9,7 +9,8 @@ let rootDir: string | undefined
 let buildOutDir: string | undefined
 
 // https://vite.dev/config/
-export default defineConfig({
+export default defineConfig(({ command }) => ({
+  base: command === "build" ? "/loon-rules/" : "/",
   plugins: [
     react({
       babel: {
@@ -42,5 +43,5 @@ export default defineConfig({
   build: {
     outDir: "../public",
     emptyOutDir: true,
-  }
-})
+  },
+}))

@@ -217,11 +217,12 @@ function App() {
   const [activeTab, setActiveTab] = useState<TabId>("all")
   const [searchTerm, setSearchTerm] = useState("")
   const [errorMessage, setErrorMessage] = useState("")
+  const rulesUrl = `${import.meta.env.BASE_URL}loon-rules.json`
 
   useEffect(() => {
     let active = true
 
-    fetch("/loon-rules.json")
+    fetch(rulesUrl)
       .then((res) => {
         if (!res.ok) throw new Error(`HTTP ${res.status}`)
         return res.json()
@@ -239,7 +240,7 @@ function App() {
     return () => {
       active = false
     }
-  }, [])
+  }, [rulesUrl])
 
   const scopedEntries = useMemo(() => {
     if (activeTab === "all") return entries
